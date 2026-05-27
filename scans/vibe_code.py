@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 import requests
 
 from scans import _browser, _gliner
+from utils.network import is_safe_url
 from utils.secrets import get_secret
 
 
@@ -308,6 +309,10 @@ def _check_supabase_rls(supabase_url: str, anon_key: str) -> bool:
     future refactor sneaks in a non-GET call, this raises rather than hits
     the third-party endpoint with a mutating request.
     """
+    if not is_safe_url(supabase_url):
+        logger.warning("VibeScan blocked unsafe Supabase URL: %s", supabase_url)
+        return False
+
     for table in SUPABASE_TABLE_GUESSES:
         try:
             r = requests.get(
@@ -405,6 +410,21 @@ def probe(app: dict, identity: dict | None = None) -> dict:
     without attribution are flagged for the caller to filter out.
     """
     url = app["url"]
+    if not is_safe_url(url):
+        return {
+            **app,
+            "reachable": False,
+            "http_status": 0,
+            "auth_status": "unknown",
+            "auth_detail": "Blocked: unsafe URL (SSRF protection)",
+            "supabase_detected": False,
+            "supabase_rls_bypass": False,
+            "hardcoded_credentials": False,
+            "attribution_found": False,
+            "attribution_signal": "",
+            "raw_html_snippet": "",
+        }
+
     out = {
         **app,
         "reachable": False,
