@@ -15,6 +15,7 @@ Usage:
 
 import argparse
 import json
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -39,6 +40,11 @@ def main() -> int:
         help="Skip the pre-discovery target-site crawl that mines extra product/brand tokens.",
     )
     args = parser.parse_args()
+
+    domain_regex = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$", re.I)
+    if not domain_regex.match(args.domain):
+        emit({"type": "error", "message": f"Invalid domain: {args.domain}"})
+        return 1
 
     if not get_secret("SERPER_API_KEY"):
         emit(

@@ -26,6 +26,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from scans import _gliner
+from utils.network import is_safe_hostname, is_safe_url
 
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,9 @@ def _same_host(url: str, host: str) -> bool:
 
 
 def _fetch(url: str) -> str | None:
+    if not is_safe_url(url):
+        logger.warning("Target map blocked unsafe URL: %s", url)
+        return None
     try:
         r = requests.get(url, timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT})
     except requests.RequestException:
@@ -136,7 +140,7 @@ def _normalize(s: str) -> str | None:
 def crawl_target(seed_url: str, host: str) -> str:
     """BFS crawl up to MAX_PAGES within `host`, returning concatenated visible
     text. Hard-capped by TIME_BUDGET_S so we never block a scan for long."""
-    if not host:
+    if not host or not is_safe_hostname(host):
         return ""
     seed = seed_url if seed_url.startswith("http") else f"https://{seed_url}"
     seed_clean = seed.rstrip("/")

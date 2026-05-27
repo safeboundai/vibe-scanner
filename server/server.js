@@ -20,16 +20,38 @@ const path      = require("path");
 const { spawn } = require("child_process");
 
 const PORT             = parseInt(process.env.PORT || "8080", 10);
+const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD;
 const USE_AI           = process.env.USE_AI === "true";
 const OPENAI_API_KEY   = process.env.OPENAI_API_KEY;
 const ALLOWED_ORIGINS  = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map(s => s.trim())
-  : true; // same-origin only when unset
+  : false; // block all cross-origin requests by default when unset
 
 const openai = (USE_AI && OPENAI_API_KEY) ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
 const app = express();
-app.use(helmet({ contentSecurityPolicy: false }));
+
+if (DASHBOARD_PASSWORD) {
+  const basicAuth = require("express-basic-auth");
+  app.use(basicAuth({
+    users: { "admin": DASHBOARD_PASSWORD },
+    challenge: true,
+    realm: "VibeScan Dashboard",
+  }));
+}
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "script-src": ["'self'", "https://cdnjs.cloudflare.com"],
+      "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      "font-src": ["'self'", "https://fonts.gstatic.com"],
+      "img-src": ["'self'", "data:", "https://img.shields.io"],
+      "connect-src": ["'self'"],
+    },
+  },
+}));
 app.use(express.json());
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use("/api/", rateLimit({
@@ -78,11 +100,13 @@ app.post("/api/assess", async (req, res) => {
   }
 });
 
+const DOMAIN_REGEX = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+
 // SSE-streamed real scan. Spawns the Python CLI and forwards JSON-line events.
 app.get("/api/vibe-scan", (req, res) => {
   const domain = (req.query.domain || "").toString().trim();
-  if (!domain || !domain.includes(".")) {
-    return res.status(400).json({ error: "Query param 'domain' is required and must contain a dot." });
+  if (!domain || !DOMAIN_REGEX.test(domain)) {
+    return res.status(400).json({ error: "Query param 'domain' is required and must be a valid domain name." });
   }
   const name = (req.query.name || "").toString().trim();
   const maxApps = Math.max(1, Math.min(50, parseInt(req.query.max_apps, 10) || 20));
