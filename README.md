@@ -15,7 +15,7 @@ The CLI streams JSON-line events on stdout. The bundled Node dashboard forwards 
 ## Quick start
 
 ```bash
-git clone https://github.com/Zendata/vibe-scanner.git
+git clone https://github.com/safeboundai/vibe-scanner.git
 cd vibe-scanner
 cp .env.example .env             # fill in SERPER_API_KEY (required)
 docker build -t vibe-scanner .
@@ -231,7 +231,7 @@ VibeScan is built for **authorized security testing**: scanning domains you own,
 
 ## Contributing
 
-Issues and PRs welcome at https://github.com/Zendata/vibe-scanner. For substantial changes, please open an issue first to discuss.
+Issues and PRs are welcome. For substantial changes, please open an issue first to discuss.
 
 ---
 
